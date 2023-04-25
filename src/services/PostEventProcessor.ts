@@ -36,12 +36,9 @@ export class PostEventProcessor {
 			console.log(obj);
 			console.log("Evnt name "+obj.event_name)
 
-
 			if(obj.event_name === Constants.AUTH_EVENT_TYPE){
-				console.log("123")
 				return new AuthRequestedEvent(obj);
 			}else if(Constants.BASE_EVENT_TYPES.includes(obj.event_name)){
-				console.log("456")
 				return new BaseEvent(obj);
 			}
 

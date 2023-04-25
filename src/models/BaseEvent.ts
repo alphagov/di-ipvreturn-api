@@ -9,7 +9,6 @@ import {HttpCodesEnum} from "../models/enums/HttpCodesEnum";
 export class BaseEvent {
 
 	constructor(data: Partial<BaseEvent>) {
-		console.log("CME HERER");
 		this.event_name = data.event_name!;
 		this.user_id = data.user!.user_id!;
 		this.event_id = data.event_id!;
