@@ -60,20 +60,31 @@ Mappings:
   PlatformConfiguration:
     dev:
       CSLSEGRESS: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      TxMASQS: "mock-sqs"
+      TxMAKey: "mock-kms"
     build:
       CSLSEGRESS: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      TxMASQS: "mock-sqs"
+      TxMAKey: "mock-kms"
     staging:
       CSLSEGRESS: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      TxMASQS: arn:aws:sqs:eu-west-2:178023842775:self-staging-EC-SQS-Output-Queue-return
+      TxMAKey: arn:aws:kms:eu-west-2:178023842775:key/aba0d7ef-779a-4f6c-9b50-ec91f6cb8b5c
     integration:
       CSLSEGRESS: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      TxMASQS: arn:aws:sqs:eu-west-2:729485541398:self-integration-EC-SQS-Output-Queue-return
+      TxMAKey: arn:aws:kms:eu-west-2:729485541398:key/e45c19b4-bf7c-4542-95d0-89485c20533c
     production:
       CSLSEGRESS: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      TxMASQS: arn:aws:sqs:eu-west-2:451773080033:self-production-EC-SQS-Output-Queue-return
+      TxMAKey: arn:aws:kms:eu-west-2:451773080033:key/35e96311-91fd-425e-bb53-b90bc8c3549c
 
   EnvironmentVariables: # This is all the environment specific environment variables that don't belong in globals.
     dev:
       GOVUKNOTIFYTEMPLATEID: "3baf3b59-2396-44c8-b7a4-b5a981fad5e8"
       MESSAGERETENTIONPERIODDAYS: 345600 # Default: 4 days
-      RETURNJOURNEYURL: "https://return.dev.account.gov.uk"
+      TXMAMESSAGERETENTIONPERIODDAYS: 604800 # Default: 7 days
+      RETURNJOURNEYURL: "https://return.dev.account.gov.uk/resume"
       SESSIONRETURNRECORDTTL: 950400 # Default 11 days
       DNSSUFFIX: "return.dev.account.gov.uk"
       OIDCURL: "https://oidc.staging.account.gov.uk/"
@@ -81,7 +92,8 @@ Mappings:
     build:
       GOVUKNOTIFYTEMPLATEID: "3baf3b59-2396-44c8-b7a4-b5a981fad5e8"
       MESSAGERETENTIONPERIODDAYS: 345600 # Default: 4 days
-      RETURNJOURNEYURL: "https://return.build.account.gov.uk"
+      TXMAMESSAGERETENTIONPERIODDAYS: 604800 # Default: 7 days
+      RETURNJOURNEYURL: "https://return.build.account.gov.uk/resume"
       SESSIONRETURNRECORDTTL: 950400 # Default 11 days
       DNSSUFFIX: "return.build.account.gov.uk"
       OIDCURL: "https://oidc.staging.account.gov.uk/"
@@ -89,7 +101,8 @@ Mappings:
     staging:
       GOVUKNOTIFYTEMPLATEID: "3baf3b59-2396-44c8-b7a4-b5a981fad5e8"
       MESSAGERETENTIONPERIODDAYS: 345600 # Default: 4 days
-      RETURNJOURNEYURL: "https://return.staging.account.gov.uk"
+      TXMAMESSAGERETENTIONPERIODDAYS: 604800 # Default: 7 days
+      RETURNJOURNEYURL: "https://return.staging.account.gov.uk/resume"
       SESSIONRETURNRECORDTTL: 950400 # Default 11 days
       DNSSUFFIX: "return.staging.account.gov.uk"
       OIDCURL: "https://oidc.staging.account.gov.uk/"
@@ -97,7 +110,8 @@ Mappings:
     integration:
       GOVUKNOTIFYTEMPLATEID: "3baf3b59-2396-44c8-b7a4-b5a981fad5e8"
       MESSAGERETENTIONPERIODDAYS: 345600 # Default: 4 days
-      RETURNJOURNEYURL: "https://return.integration.account.gov.uk"
+      TXMAMESSAGERETENTIONPERIODDAYS: 604800 # Default: 7 days
+      RETURNJOURNEYURL: "https://return.integration.account.gov.uk/resume"
       SESSIONRETURNRECORDTTL: 950400 # Default 11 days
       DNSSUFFIX: "return.integration.account.gov.uk"
       OIDCURL: "https://oidc.integration.account.gov.uk/"
@@ -105,9 +119,11 @@ Mappings:
     production:
       GOVUKNOTIFYTEMPLATEID: "3baf3b59-2396-44c8-b7a4-b5a981fad5e8"
       MESSAGERETENTIONPERIODDAYS: 345600 # Default: 4 days
-      RETURNJOURNEYURL: "https://return.account.gov.uk"
+      TXMAMESSAGERETENTIONPERIODDAYS: 604800 # Default: 7 days
+      RETURNJOURNEYURL: "https://return.account.gov.uk/resume"
       SESSIONRETURNRECORDTTL: 950400 # Default 11 days
       DNSSUFFIX: "return.account.gov.uk"
+      OIDCURL: "https://oidc.account.gov.uk/"
       RETURNREDIRECTURL: "https://return.account.gov.uk/callback"
   TxMAAccounts:
     # EVENTS is used to egress to TxMA.
@@ -135,6 +151,9 @@ Conditions:
     - !Equals [!Ref Environment, staging]
     - !Equals [!Ref Environment, integration]
     - !Equals [!Ref Environment, production]
+  IsPersonalIdentifiableInformationEnvironment: !Or
+    - !Equals [!Ref Environment, integration]
+    - !Equals [!Ref Environment, production]
   UseCodeSigning:
     Fn::Not:
       - Fn::Equals:
@@ -152,6 +171,13 @@ Conditions:
           - "none"
   CreateProdResources: !Equals [ !Ref Environment, production]
   CreateNonProdResources: !Not [!Condition CreateProdResources]
+  IsMockedEnvironment: !Or
+    - Fn::Equals:
+        - !Ref Environment
+        - dev
+    - Fn::Equals:
+        - !Ref Environment
+        - build
 
 Globals:
   Function:
@@ -209,10 +235,6 @@ Resources:
       ThumbprintList:
         - !Sub "{{resolve:ssm:/${Environment}/ipvreturn/OIDC_THUMBPRINT}}"
       Url: !FindInMap [ EnvironmentVariables, !Ref Environment, OIDCURL ]
-      PermissionsBoundary: !If
-        - UsePermissionsBoundary
-        - !Ref PermissionsBoundary
-        - !Ref AWS::NoValue
 
   ### AssumeRoleWithWebIdentityRole
   AssumeRoleWithWebIdentityRole:
@@ -262,7 +284,18 @@ Resources:
           Parameters:
             Location: "./ipvr-spec.yaml"
         OpenApiVersion: 3.0.1
-
+      MethodSettings:
+        - LoggingLevel: INFO
+          MetricsEnabled: true
+          ThrottlingBurstLimit: 400
+          ThrottlingRateLimit: 200
+          # Disable data trace in production and integration to avoid logging customer sensitive information
+          DataTraceEnabled: !If
+            - IsPersonalIdentifiableInformationEnvironment
+            - false
+            - true
+          HttpMethod: "*"
+          ResourcePath: "/*"
       TracingEnabled: true
       Tags:
         Product: GOV.UK Sign In
@@ -300,13 +333,7 @@ Resources:
   IPVRApiCustomDomain:
     Type: AWS::ApiGateway::DomainName
     Properties:
-      DomainName: !If
-        - CreateDevResources
-        - !Sub
-          - "api-${AWS::StackName}.${DNSSUFFIX}"
-          - DNSSUFFIX:
-              !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
-        - !Sub
+      DomainName: !Sub
           - "api.${DNSSUFFIX}"
           - DNSSUFFIX:
               !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
@@ -319,13 +346,7 @@ Resources:
   IPVRApiCertificateRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      Name: !If
-        - CreateDevResources
-        - !Sub
-          - "api-${AWS::StackName}.${DNSSUFFIX}"
-          - DNSSUFFIX:
-              !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
-        - !Sub
+      Name: !Sub
           - "api.${DNSSUFFIX}"
           - DNSSUFFIX:
               !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
@@ -339,13 +360,7 @@ Resources:
     Type: AWS::ApiGateway::BasePathMapping
     DependsOn: IPVRApiCustomDomain
     Properties:
-      DomainName: !If
-        - CreateDevResources
-        - !Sub
-          - "api-${AWS::StackName}.${DNSSUFFIX}"
-          - DNSSUFFIX:
-              !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
-        - !Sub
+      DomainName: !Sub
           - "api.${DNSSUFFIX}"
           - DNSSUFFIX:
               !FindInMap [ EnvironmentVariables, !Ref Environment, DNSSUFFIX ]
@@ -383,6 +398,26 @@ Resources:
             KeyId:
               Fn::ImportValue:
                 !Sub "${L2DynamoStackName}-session-events-table-key-id"
+        - Statement:
+            - Sid: TxMAKMSDecryptkeysPolicy
+              Effect: Allow
+              Action:
+                - "kms:Decrypt"
+              Resource: !If
+                - IsMockedEnvironment
+                - !GetAtt MockTxMASQSQueue.Arn
+                - !FindInMap [PlatformConfiguration, !Ref Environment, TxMAKey]
+            - Sid: TxMASQSConsumeEventPolicy
+              Effect: Allow
+              Action:
+                - "sqs:DeleteMessage"
+                - "sqs:GetQueueAttributes"
+                - "sqs:ChangeMessageVisibility"
+                - "sqs:ReceiveMessage"
+              Resource: !If
+                - IsMockedEnvironment
+                - !GetAtt MockTxMASQSQueue.Arn
+                - !FindInMap [PlatformConfiguration, !Ref Environment, TxMASQS]
 
     Metadata: # Manage esbuild properties
       BuildMethod: esbuild
@@ -418,6 +453,17 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref PostEventFunction
       Principal: apigateway.amazonaws.com
+
+  PostEventFunctionSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      EventSourceArn: !If
+        - IsMockedEnvironment
+        - !GetAtt MockTxMASQSQueue.Arn
+        - !FindInMap [PlatformConfiguration, !Ref Environment, TxMASQS]
+      FunctionName: !Ref PostEventFunction
 
   GovNotifyFunction:
     Type: AWS::Serverless::Function
@@ -750,6 +796,18 @@ Resources:
         - alias/GovNotifyEncryptionKey
       TargetKeyId: !Ref GovNotifyEncryptionKey
 
+  MockTxMASQSQueue:
+    Type: AWS::SQS::Queue
+    Condition: IsMockedEnvironment
+    Properties:
+      MessageRetentionPeriod:
+        !FindInMap [
+          EnvironmentVariables,
+          !Ref Environment,
+          TXMAMESSAGERETENTIONPERIODDAYS,
+        ]
+      VisibilityTimeout: 60
+
   TxMASQSQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -757,7 +815,7 @@ Resources:
         !FindInMap [
           EnvironmentVariables,
           !Ref Environment,
-          MESSAGERETENTIONPERIODDAYS,
+          TXMAMESSAGERETENTIONPERIODDAYS,
         ]
       VisibilityTimeout: 60
       KmsMasterKeyId: !Ref TxMAKeyAlias
